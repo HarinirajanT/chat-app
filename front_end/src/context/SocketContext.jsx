@@ -1,6 +1,8 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useAuthContext } from "./AuthContext";
 import io from "socket.io-client";
+import { isDemoMode } from "../libs/config";
+import { createDemoSocket } from "../libs/demoApi";
 
 const SocketContext = createContext();
 
@@ -15,15 +17,25 @@ export const SocketContextProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (authUser) {
-			const socket = io("http://localhost:3000",{
-				query:{
-					userId:authUser._id,
-				}
+			if (isDemoMode) {
+				const demoSocket = createDemoSocket(authUser._id);
+				setSocket(demoSocket);
+				demoSocket.on("getOnlineUsers", (users) => {
+					setOnlineUsers(users);
+				});
+				return () => demoSocket.close();
+			}
+
+			const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+			const socket = io(socketUrl, {
+				query: {
+					userId: authUser._id,
+				},
 			});
 
 			setSocket(socket);
 
-			socket.on("getOnlineUsers",(users)=>{
+			socket.on("getOnlineUsers", (users) => {
 				setOnlineUsers(users);
 			});
 
